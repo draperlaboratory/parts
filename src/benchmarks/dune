@@ -1,0 +1,33 @@
+(library
+  (name benchmarks)
+  (modules benchmarks)
+  (libraries ParTS core)
+  (ocamlopt_flags (:standard -O3))
+)
+
+;; These are individual benchmarks.  To add a new benchmark, copy one of these
+;; and change the "name" and "modules" parameters.
+(executable
+  (name bench_json)
+  (modules bench_json)
+  (libraries ParTS core core_bench benchmarks)
+  (ocamlopt_flags (:standard -O3))
+)
+(executable
+  (name bench_sexp)
+  (modules bench_sexp)
+  (libraries ParTS core core_bench benchmarks)
+  (ocamlopt_flags (:standard -O3))
+)
+(executable
+  (name bench_as)
+  (modules bench_as)
+  (libraries ParTS core core_bench benchmarks)
+  (ocamlopt_flags (:standard -O3))
+)
+(executable
+  (name bench_ppm)
+  (modules bench_ppm)
+  (libraries ParTS core core_bench benchmarks)
+  (ocamlopt_flags (:standard -O3))
+)

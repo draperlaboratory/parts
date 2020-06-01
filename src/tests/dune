@@ -1,0 +1,4 @@
+(test
+  (name test_parsers)
+  (libraries ounit2 ParTS)
+)

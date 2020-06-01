@@ -1,0 +1,10 @@
+-R theories/ ParTS
+
+theories/Tactics.v
+theories/Machine.v
+theories/Evaluators.v
+theories/Opt.v
+theories/FusionExample.v
+theories/ExampleParsers.v
+theories/Json.v
+theories/Extract.v

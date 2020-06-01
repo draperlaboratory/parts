@@ -1,0 +1,4 @@
+(library
+   (name ParTS)
+   (ocamlopt_flags (:standard -O3))
+)
