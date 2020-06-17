@@ -163,28 +163,25 @@ Module Common.
   Definition digit_ {st rv} : Machine rv st ascii ascii unit :=
     charset_ "0123456789".
 
-  Definition digit_nat {st rv} :  Machine rv st ascii ascii nat :=
-         embed_token ("0"%char, 0)
-     <|> embed_token ("1"%char, 1)
-     <|> embed_token ("2"%char, 2)
-     <|> embed_token ("3"%char, 3)
-     <|> embed_token ("4"%char, 4)
-     <|> embed_token ("5"%char, 5)
-     <|> embed_token ("6"%char, 6)
-     <|> embed_token ("7"%char, 7)
-     <|> embed_token ("8"%char, 8)
-     <|> embed_token ("9"%char, 9).
+  (* We could implement this in Coq, but it would be really inefficient due to
+     Coq's horrible ascii type.  Instead we axiomatize it, as we do for many
+     things where Coq has inefficient internal representations.
 
-  Definition digit_list_to_nat : list nat -> nat :=
-    let fix loop (acc:nat) (l:list nat) :=
+     The ocaml version will throw an exception in the case where the arg isn't a
+     valid digit char, so guard its use. *)
+  Axiom ascii_to_digit_value : ascii -> nat.
+
+  Definition digit_list_to_nat : list ascii -> nat :=
+    let fix loop (acc:nat) (l:list ascii) :=
         match l with
         | [] => acc
-        | (d::ds) => loop (d + (10 * acc)) ds
+(*        | (d::ds) => loop ((ascii_to_digit_value d) + (10 * acc)) ds *)
+        | (d::ds) => loop (ocaml_plus (ascii_to_digit_value d) (ocaml_times 10 acc)) ds
         end
     in loop 0.
 
   Definition integer {st rv} : Machine rv st Ascii.ascii Ascii.ascii nat :=
-    digit_list_to_nat <$$> star1 digit_nat.
+    digit_list_to_nat <$$> star1 digit.
 
   Definition alphanum {st rv} : Machine rv st ascii ascii ascii :=
     charset "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".
@@ -372,6 +369,7 @@ Module JustAs.
 
   Definition p_count_as_opt := `p_count_as_opt'.
 
+
   (* Variant 2: using state.  Would be interesting to compate with a version
      that could do less state assumptions by making more requirements for p's
      state or just inline ^"a". *)
@@ -442,7 +440,7 @@ Module PPM.
     ^"#"%char @> drop_until_tok "010"%char.
 
   Definition lexer {st rv} : Machine rv st ascii ascii ppm_tok :=
-      (star_ (whitespace <|> ppm_comment)) @> lex_tok.
+      lex_tok @< (star_ (whitespace <|> ppm_comment)).
 
   (**** Parsing ****)
 
@@ -535,6 +533,27 @@ Module PPM.
     | (width,height,max_allowed),(max_actual,count) =>
       return_ (Nat.eqb count (width * height) && Nat.leb max_actual max_allowed)
     end.
+
+  Check lexer.
+  Definition lex_opt' : Opt (st := ()) lexer.
+  Proof.
+    eexists; intro; intros.
+    autounfold.
+    vm_compute.
+    reflexivity.
+  Qed.
+
+  Definition ppm_lex_opt := `lex_opt'.
+
+  Definition parse_opt' : Opt (st := ()) parse_ppm.
+  Proof.
+    eexists; intro; intros.
+    autounfold.
+    vm_compute.
+    reflexivity.
+  Qed.
+
+  Definition ppm_parse_opt := `parse_opt'.
 
   Definition p_ppm_opt : {f  | f = fun st (input : stream (ocaml_stream ascii) ascii) =>
                                      compose_parser (st1 := unit) (st2 := unit) lexer parse_ppm

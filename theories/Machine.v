@@ -294,6 +294,7 @@ Arguments ocaml_lte {a}.
 Axiom ocaml_gte : forall a, a -> a -> bool.
 Arguments ocaml_gte {a}.
 Axiom ocaml_plus : nat -> nat -> nat.
+Axiom ocaml_times : nat -> nat -> nat.
 
 (* The next section is building a smart interval condition checker for
  consecutive ascii characters, which appears to give a performance boost compared

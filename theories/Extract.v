@@ -38,11 +38,13 @@ Extract Inlined Constant ocaml_lookahead => "Runtime.ocaml_lookahead".
 Extract Inlined Constant ocaml_eq => "(=)".
 Extract Inlined Constant ocaml_or => "(||)".
 Extract Inlined Constant ocaml_plus => "(+)".
+Extract Inlined Constant ocaml_times => "( * )".
 Extract Inlined Constant ocaml_lte => "(<=)".
 
 Extract Inlined Constant ocaml_gte => "(>=)".
 Extract Inlined Constant ocaml_and => "(&&)".
 Extract Constant ocaml_stream "'a" => "'a Runtime.stream_t".
+Extract Inlined Constant Common.ascii_to_digit_value => "(fun c -> (Char.code c) - 48)".
 (*
 Variable ocaml_stream_fromfile : string -> ocaml_stream byte.
 *)
@@ -175,4 +177,4 @@ Extraction "src/p_json.ml"
 Extraction "src/example_parsers.ml"
            Sexp.p_sexp_opt
            JustAs.p_count_as_opt JustAs.p_count_as_state_opt
-           PPM.p_ppm_opt.
+           PPM.p_ppm_opt PPM.ppm_lex_opt PPM.ppm_parse_opt.
