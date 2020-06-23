@@ -33,17 +33,20 @@ Class stream  (str : Type) (a : Type) : Type :=
     state : str;
     peek_st : forall b, str -> (option a -> b) -> b;
     drop_st : forall b, str-> (str -> b) -> b;
+    lookahead_st : forall b, str -> (str -> b) -> b;
   }.
 
 Arguments peek_st {str} {a}.
 Arguments drop_st {str} {a}.
+Arguments lookahead_st {str} {a}.
 Arguments state {str} {a}.
 
 Definition update_stream {str a} (x : stream str a) (state' : str) : stream str a :=
   {|
     state := state';
     peek_st := x.(peek_st);
-    drop_st := x.(drop_st)
+    drop_st := x.(drop_st);
+    lookahead_st := x.(lookahead_st);
   |}.
 
 
@@ -59,10 +62,12 @@ Arguments failwith {b}.
 Axiom ocaml_stream : Type -> Type.
 Axiom ocaml_peek :  ∀ a b : Type, ocaml_stream a → (option a → b) → b.
 Axiom ocaml_drop : ∀ a b : Type, ocaml_stream a → (ocaml_stream a → b) → b.
+Axiom ocaml_lookahead : ∀ a b : Type, ocaml_stream a → (ocaml_stream a → b) → b.
 Axiom ocaml_stream_fromfile : string -> ocaml_stream Byte.byte.
 
 Arguments ocaml_peek {a}.
 Arguments ocaml_drop {a}.
+Arguments ocaml_lookahead {a}.
 
 Axiom let_ : forall (a b : Type), a -> (a -> b) -> b.
 Arguments let_ {a} {b}.
@@ -71,7 +76,8 @@ Definition dummy_stream {tok }s : stream _  tok :=
   {|
     state := s;
     peek_st := ocaml_peek;
-    drop_st := ocaml_drop
+    drop_st := ocaml_drop;
+    lookahead_st := ocaml_lookahead;
   |}.
 
 Inductive Tok (A : Type) := Known : A -> Tok A | Unknown | EOF.
@@ -118,7 +124,6 @@ Fixpoint eval_m_stream {st str tag out b}
                        eval_m_stream (f o) k m_st' input')
                     m_st input
   | Peek b m_true m_false m_eof =>
-
     let prop_rec t :=
         if take_branch t b
         then eval_m_stream m_true k
@@ -134,6 +139,21 @@ Fixpoint eval_m_stream {st str tag out b}
            | Some t => prop_rec t m_st input
            | None   => prop_eof m_st input
            end)
+  | Lookahead m_b m_true m_false m_eof =>
+    fun m_st input =>
+      (input.(lookahead_st)) _
+        (input.(state))
+        (fun old_str =>
+           let old_input := update_stream input old_str in
+           eval_m_stream
+             m_b
+             (fun ob m_st' _ =>
+                match ob with
+                | None => eval_m_stream m_eof k m_st' old_input
+                | Some true => eval_m_stream m_true k m_st' old_input
+                | Some false => eval_m_stream m_false k m_st' old_input
+                end
+        ) m_st input)
   | Return_Drop_Tok g => fun m_st input =>
       (input.(peek_st))
         _
@@ -242,6 +262,24 @@ Fixpoint eval_m_prop_stream_gen {st str tag out b}
            end)
     | EOF => prop_eof
     end
+  (* TODO: should we doing any propagation here? *)
+  | Lookahead m_b m_true m_false m_eof =>
+    (input.(lookahead_st))
+      _
+      (input.(state))
+      (fun old_str =>
+         let old_input := update_stream input old_str in
+         eval_m_prop_stream_gen
+           m_b
+           None
+           Unknown
+           (fun ob m_st' _ =>
+              match ob with
+              | None => eval_m_prop_stream_gen m_eof None Unknown k m_st' old_input
+              | Some true => eval_m_prop_stream_gen m_true None Unknown k m_st' old_input
+              | Some false => eval_m_prop_stream_gen m_false None Unknown k m_st' old_input
+              end
+           ) m_st input)
   | Return_Drop_Tok g =>
     let drop_helper t :=  (input.(drop_st))
                     _
@@ -281,22 +319,52 @@ Definition eval_m_prop_stream  {st str tag out b}
          (input : stream str tok) : b :=
   eval_m_prop_stream_gen m None Unknown k m_st input.
 
+(* eval_stream takes a machine [m] and creates the stream that
+   repeatedly calls [m] to produce [out]s.  This can then be used as
+   the input to another machine.
+
+   The main subtlety is that the equivalent of "drop" for the output
+   stream is a call to [m] which discards its result, and the
+   equivalent of "peek" is a call to [m] which then *reverts* back to
+   the original position in the input stream.
+
+   This is in general impossible without [lookahead], which we do not
+   assume is always implemented. Our solution is to use a buffer which
+   is filled at each call to [drop], which then can be examined on a
+   call to [peek]. This requires the buffer to be "primed", i.e. an
+   initial call to the machine [m] at the beginning of an
+   [eval_stream] invocation.
+
+ *)
 Definition eval_stream {st st' tag out } `{BInfo tok tag} (m : Machine _ st tok tag out) (x : out) (m_st : st) (xs : stream st' tok) : stream ((option out) * st' * st) out :=
   {|
-    state := (Some x , xs.(state), m_st);
-    drop_st := fun _ st k =>
-                 let '(_ , str , m_st') := st in
-                 xs.(peek_st) _ str (fun ot => match ot with
-                                        | None => k (None ,str, m_st')
-                                        | Some _ =>
-                                          let xs' := update_stream xs str in
-                 (eval_m_prop_stream m (fun o m_st' st'' =>
-                                         k (Some o, st'', m_st'))
-                                         m_st xs')
-                   end)
-    ;
-    peek_st := fun _ st k => let '(o,_ ,  _) := st in
-                             k o
+    state := (Some x, xs.(state), m_st);
+
+    drop_st :=
+      fun _ st k =>
+        let '(_, str, m_st') := st in
+        xs.(peek_st)
+             _
+             str
+             (fun ot => match ot with
+                        | None => k (None, str, m_st')
+                        | Some _ =>
+                          let xs' := update_stream xs str in
+                          (eval_m_prop_stream m (fun o m_st' st'' =>
+                                                   k (Some o, st'', m_st'))
+                                              m_st xs')
+                        end);
+
+    peek_st := fun _ st k => let '(o, _, _) := st in
+                             k o;
+    lookahead_st :=
+      fun _ st k =>
+        let '(buf, str, m_st') := st in
+        xs.(lookahead_st)
+             _
+             str
+             (fun old_str => k (buf, old_str, m_st'))
+        ;
    |}.
 
 
@@ -326,4 +394,8 @@ Global Instance list_stream {a} : list a -> stream (list a) a :=
       state := l;
       peek_st := fun b l k => k (List.head l);
       drop_st := fun b l k => k (List.tail l);
+      lookahead_st := fun b l k =>
+                        (* Just to emphasize that this is a "saved" value *)
+                        let old_l := l in
+                        k old_l;
     |}.

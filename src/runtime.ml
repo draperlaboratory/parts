@@ -70,6 +70,11 @@ let ocaml_peek : 'a stream_t -> ('a option -> 'b) -> 'b  =
 let ocaml_drop : 'a stream_t -> ('a stream_t -> 'b) -> 'b  =
   fun st k -> st.pos <- st.pos + 1; k st
 
+let ocaml_lookahead : 'a stream_t -> ('a stream_t -> 'b) -> 'b =
+  fun st k ->
+  let old_st = { pos = st.pos; byte_stream = st.byte_stream } in
+  k old_st
+
 exception Parse_fail of string
 
 let failwith_ : char list -> 'a =

@@ -39,7 +39,12 @@ let json_filenames = [
   ]
 
 let make_stream (str : 'a ocaml_stream) : ('a ocaml_stream, 'a) stream =
-  { state = str; peek_st = (fun _ -> Runtime.ocaml_peek); drop_st = (fun _ -> Runtime.ocaml_drop) }
+  {
+    state = str;
+    peek_st = (fun _ -> Runtime.ocaml_peek);
+    drop_st = (fun _ -> Runtime.ocaml_drop);
+    lookahead_st = (fun _ -> Runtime.ocaml_lookahead);
+  }
 
 let build_test (st:'a) (m : 'a -> (char ocaml_stream, char) stream -> int)
                ((_, input, result) : int * string * int)

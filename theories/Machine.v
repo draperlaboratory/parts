@@ -67,6 +67,16 @@ Inductive Machine (rv : RecVar) (st tok tag out : Type) : Type :=
       -> Machine rv st tok tag out
       -> Machine rv st tok tag out
 
+(* Lookahead does not exist in TAAP. It's semantics is to run the
+  lookahead machine, (returning None if EOF is encountered) and use the
+  resulting boolean to dynamically decide which branch to take.
+*)
+| Lookahead : Machine rv st tok tag (option bool)
+              -> Machine rv st tok tag out
+              -> Machine rv st tok tag out
+              -> Machine rv st tok tag out
+              -> Machine rv st tok tag out
+
 (* This constructor gives us direct access to the dynamic token. To be used with care. Do not attempt to match on the token, consider it only an opaque value. This will also Drop the token. This choice was made in order to make optimizations easier. If stream is empty, this will throw an error. *)
 | Return_Drop_Tok : (tok -> out) ->  Machine rv st tok tag out
 
@@ -88,6 +98,7 @@ Arguments Return {rv} {st} {tok} {tag} {out}.
 Arguments Drop {rv} {st} {tok} {tag} {out}.
 Arguments Call {rv} {st} {tok} {tag} {out}.
 Arguments Peek {rv} {st} {tok} {tag} {out}.
+Arguments Lookahead {rv} {st} {tok} {tag} {out}.
 Arguments Return_Drop_Tok {rv} {st} {tok} {tag} {out}.
 (* Arguments Peek_Drop_Tok {rv} {st} {tok} {tag} {out}. *)
 Arguments Read {rv} {st} {tok} {tag} {out}.
@@ -114,12 +125,20 @@ Definition peek {st tok tag out : Type} {rv} : SetCompl tag -> Machine rv st tok
                                      -> Machine rv st tok tag out :=
   fun b m n p => Peek b m n p.
 
+Definition lookahead {st tok tag out : Type} {rv} : Machine rv st tok tag (option bool) -> Machine rv st tok tag out -> Machine rv st tok tag out
+                                     -> Machine rv st tok tag out
+                                     -> Machine rv st tok tag out :=
+  fun b m n p => Lookahead b m n p.
+
 Definition eof : string := "Unexpected EOF!".
 
 Definition peek_fail {st tok tag out : Type} {rv} : (SetCompl tag) -> Machine rv st tok tag out -> Machine rv st tok tag out
-                                          -> Machine rv st tok tag out :=
+                                                    -> Machine rv st tok tag out :=
   fun b m n => peek b m n (raise eof).
 
+Definition lookahead_fail {st tok tag out : Type} {rv} : Machine rv st tok tag (option bool) -> Machine rv st tok tag out -> Machine rv st tok tag out
+                                                         -> Machine rv st tok tag out :=
+  fun b m n => lookahead b m n (raise eof).
 
 Definition read {st tok tag out} {rv} (m : st -> Machine rv st tok tag out) : Machine rv st tok tag out :=
   Read (fun st => m st).
@@ -228,6 +247,20 @@ Fixpoint eval_m
                     eval_m n m_true state input
                   else
                     eval_m n m_false state input
+      end
+    | Lookahead b m_true m_false m_eof =>
+      match hd_error input with
+      | None => eval_m n m_eof state input
+      | Some _ =>
+        (* Throw away the updated stream but propagate state, which may be useful *)
+        let '(o, _, state') := (eval_m n b state input) in
+        match o with
+        | inl err => (write_err err, input, state')
+        | inr t => if t then
+                     eval_m n m_true state' input
+                   else
+                     eval_m n m_false state' input
+        end
       end
     | Return_Drop_Tok f =>
             match hd_error input with
@@ -453,6 +486,8 @@ Fixpoint bind_inline {st tok tag out out' : Type} {rv}
   | Call _ m g => Call _ (bind_inline m g) f
   | Peek tag m_yes m_no m_empty =>
     Peek tag (bind_inline m_yes f) (bind_inline m_no f) (bind_inline m_empty f)
+  | Lookahead m_dec m_yes m_no m_empty =>
+    Lookahead m_dec (bind_inline m_yes f) (bind_inline m_no f) (bind_inline m_empty f)
   | Return_Drop_Tok g => Call _ (Return_Drop_Tok g) f
   | Read m_read => Read (fun state => bind_inline (m_read state) f)
   | Write update m' => Write update (bind_inline m' f)

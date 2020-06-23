@@ -27,7 +27,12 @@ let explode s = List.init (String.length s) (String.get s)
 
 
 let make_stream (str : 'a ocaml_stream) : ('a ocaml_stream, 'a) stream =
-  { state = str; peek_st = (fun _ -> Runtime.ocaml_peek); drop_st = (fun _ -> Runtime.ocaml_drop) }
+  {
+    state = str;
+    peek_st = (fun _ -> Runtime.ocaml_peek);
+    drop_st = (fun _ -> Runtime.ocaml_drop);
+    lookahead_st = (fun _ -> Runtime.ocaml_lookahead);
+  }
 
 (* stream takes care of cleanup of in_channel? *)
 let stream_file filename : char Stream.t = Stream.of_channel (open_in filename)
