@@ -34,6 +34,7 @@ Extract Inlined Constant failwith => "Runtime.failwith_".
 Extract Inlined Constant let_ => "Runtime.let_".
 Extract Inlined Constant ocaml_peek => "Runtime.ocaml_peek".
 Extract Inlined Constant ocaml_drop => "Runtime.ocaml_drop".
+Extract Inlined Constant ocaml_lookahead => "Runtime.ocaml_lookahead".
 Extract Inlined Constant ocaml_eq => "(=)".
 Extract Inlined Constant ocaml_or => "(||)".
 Extract Inlined Constant ocaml_plus => "(+)".
