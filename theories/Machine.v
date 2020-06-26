@@ -593,28 +593,74 @@ Proof.
 Defined.
 
 
-Definition or_machine {rv}
+Class Orable {rv st tok tag out}
+      (m1 : Machine rv st tok tag out)
+      (m2 : Machine rv st tok tag out)
+  : Type :=
+  { or_machine : Machine rv st tok tag out }.
+
+
+Definition get_or_machine {rv st tok tag out}
+      (m1 : Machine rv st tok tag out)
+      (m2 : Machine rv st tok tag out)
+      {H : Orable m1 m2} : Machine rv st tok tag out := or_machine.
+
+(*
+
+  This is the orable instance for the single token lookahead machines.
+
+*)
+Instance orable_cfg {rv}
            `{EqDecision tok}
            `{BInfo tok tag}
            `(m1 : Machine rv st tok tag out) {_ : First tok m1}
            `(m2 : Machine rv st tok tag out)
-  : Machine rv st tok tag out :=
-  match m1, m2 with
-  | Peek tag1 (Return_Drop_Tok coerce ) (Error msg1) (Error msg2),
-    Peek tag2 (Return_Drop_Tok _) (Error _) (Error _) => Peek (union tag1 tag2) (Return_Drop_Tok coerce) (Error msg1) (Error msg2)
-  | _ , _ =>  peek_fail (first_set (m:=m1)) m1 m2
+  : Orable m1 m2 | 0 :=
+  {|
+    or_machine :=
+      match m1, m2 with
+      | Peek tag1 (Return_Drop_Tok coerce ) (Error msg1) (Error msg2),
+        Peek tag2 (Return_Drop_Tok _) (Error _) (Error _) =>
+        Peek (union tag1 tag2) (Return_Drop_Tok coerce) (Error msg1) (Error msg2)
+      | _ , _ =>  peek_fail (first_set (m:=m1)) m1 m2
+      end
+  |}.
+
+(* How do we need to handle variables? *)
+Fixpoint machine_succeeds {rv : RecVar} {st tok tag out}
+         (handle_rec : rv st tag out -> rv st tag (option bool))
+          (m : Machine rv st tok tag out)
+  : Machine rv st tok tag (option bool) :=
+  match m with
+  | Var v => (* TODO: handle this better *) Var (handle_rec v)
+  | Error _ => return_ (Some false)
+  | Return _ => return_ (Some true)
+  | Drop m => drop (machine_succeeds handle_rec m)
+  | Call _ m f => call m (fun o => machine_succeeds handle_rec (f o))
+  | Fix f => (* ??? *) return_ (Some false)
+  | Peek b m_yes m_no m_eof =>
+    peek b
+         (machine_succeeds handle_rec m_yes)
+         (machine_succeeds handle_rec m_no)
+         (machine_succeeds handle_rec m_eof)
+  | Lookahead m_b m_yes m_no m_eof =>
+    lookahead m_b
+         (machine_succeeds handle_rec m_yes)
+         (machine_succeeds handle_rec m_no)
+         (machine_succeeds handle_rec m_eof)
+  | Return_Drop_Tok _ => Return_Drop_Tok (fun _ => Some true)
+  | Read m_f => read (fun st => machine_succeeds handle_rec (m_f st))
+  | Write f m => write f (machine_succeeds handle_rec m)
   end.
 
-(*
+Instance orable_default {rv} {st tok tag out} :
+  forall (m1 m2 : Machine rv st tok tag out),
+    Orable m1 m2 | 100 := fun m1 m2 =>
+  {|
+    or_machine := lookahead (machine_succeeds (magic _) m1) m1 m2 (raise eof)
+  |}.
 
-match m1, m2 with
-| Peek (Return_Drop_Tok (secret return?) ) (Error) (Error), Peek (Peek_Drop_Tok _) (Error) (Error) => Peek (Peek_Drop_Tok) Error Error
-| _, _ => peek_fail () m1 m2
-end
-
-*)
-
-Notation "m1 <|> m2" := (or_machine m1 m2)(at level 32, right associativity).
+Notation "m1 <|> m2" := (get_or_machine m1 m2)(at level 32, right associativity).
 
 Global Instance first_or
        {st tok out} {rv}
@@ -625,8 +671,6 @@ Global Instance first_or
 Proof.
   refine {| first_set := union (first_set (m := m1)) (first_set (m := m2)) |}.
 Defined.
-
-
 
 
 Check (^ 3 <|> ^ 4).
