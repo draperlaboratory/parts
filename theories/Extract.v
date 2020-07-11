@@ -22,7 +22,7 @@
 Require Import Machine Json Evaluators ExampleParsers.
 From stdpp Require Import base.
 Require Extraction.
-Require Import Coq.extraction.ExtrOcamlString Coq.extraction.ExtrOcamlNatInt Coq.extraction.ExtrOcamlZInt.
+Require Import Coq.extraction.ExtrOcamlNativeString Coq.extraction.ExtrOcamlNatInt Coq.extraction.ExtrOcamlZInt.
 
 Unset Guard Checking.
 

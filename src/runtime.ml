@@ -77,7 +77,7 @@ let ocaml_lookahead : 'a stream_t -> ('a stream_t -> 'b) -> 'b =
 
 exception Parse_fail of string
 
-let failwith_ : char list -> 'a =
+let failwith_ : string -> 'a =
   fun msg ->
-  let err_str = Printf.sprintf "Error: %s\n" (string_of_chars msg) in
+  let err_str = Printf.sprintf "Error: %s\n" msg in
   raise (Parse_fail err_str)

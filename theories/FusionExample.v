@@ -216,7 +216,7 @@ Eval cbn in (eval_m_prop_stream parse_tok (fun o _ _ => o)).
 
 
 Require Import Extraction.
-Require Import Coq.extraction.ExtrOcamlString Coq.extraction.ExtrOcamlNatInt Coq.extraction.ExtrOcamlZInt.
+Require Import Coq.extraction.ExtrOcamlNativeString Coq.extraction.ExtrOcamlNatInt Coq.extraction.ExtrOcamlZInt.
 
 Eval cbv in fun t => decide (A = t).
 Eval simpl in  _ : EqDecision ab_tok.

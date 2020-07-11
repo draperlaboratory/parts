@@ -23,6 +23,8 @@ From stdpp Require Import base list strings option lexico sorting.
 (* From stdpp Require Import fin_sets gmap. *)
 Open Scope string_scope.
 Require Import Ascii.
+Require Import Coq.extraction.ExtrOcamlNativeString.
+
 
 (* Should we be using a generic set type here, to keep things flexible? *)
 Inductive SetCompl (A : Type) : Type :=
@@ -130,7 +132,7 @@ Definition lookahead {st tok tag out : Type} {rv} : Machine rv st tok tag (optio
                                      -> Machine rv st tok tag out :=
   fun b m n p => Lookahead b m n p.
 
-Definition eof : string := "Unexpected EOF!".
+Definition eof : string := "Unexpected EOF!"%string.
 
 Definition peek_fail {st tok tag out : Type} {rv} : (SetCompl tag) -> Machine rv st tok tag out -> Machine rv st tok tag out
                                                     -> Machine rv st tok tag out :=
@@ -780,7 +782,7 @@ Proof.
   intros; constructor.
   - intro x; destruct x; simpl; auto.
   - intros x y; destruct x; destruct y; simpl; auto.
-  - intros x y z; destruct x; destruct y; destruct z; simpl; firstorder.
+  - intros x y z; destruct x; destruct y; destruct z; simpl; intros; subst; firstorder.
 Qed.
 
 Definition ParseEquiv {st tag tok out}
@@ -796,12 +798,8 @@ Notation "p ≃ₘ q" := (ParseEquiv p q) (at level 70).
 
 Instance equiv_p_equiv : forall st tag tok out B, Equivalence (@ParseEquiv st tag tok out B).
 Proof.
-  intros; constructor; try firstorder; unfold ParseEquiv.
-  - intros x y e state s.
-    symmetry; firstorder.
-  - intros x y z e1 e2 state s.
-    (* [transitivity (eval_M y state s).1; firstorder| transitivity (eval_M y state s).2; firstorder]. *)
-    etransitivity; auto.
+  intros st tag tok out B; destruct (equiv_err_equiv out).
+  constructor; unfold ParseEquiv; intros; eauto.
 Qed.
 
 Definition is_push_like {st tag tok out} `{BInfo tok tag}
@@ -826,4 +824,3 @@ Definition parse_list {st tok tag A}{rv} `{EqDecision tag} `{EqDecision tok}
            (p : Machine rv st tok tag A) {F : First tok p} :
   Machine rv st tok tag (list A) :=
     parse_list_until p (rev_compl (first_set (tok:=tok) (m:=p))) (return_ []).
-
