@@ -23,7 +23,6 @@ open OUnit2
 open ParTS
 open Utils
 
-
 (* let test_parse_3_2 res l = 
  *   let res' = Parse_3_2.compile_parse_3_2 (Stream.of_list l, ()) in
  *   assert_equal res' res
@@ -67,12 +66,6 @@ let parse_3_or_4_suite = [
    * "test_parse_3_or_4_fail"      >:: test_parse_3_or_4_fail *)
 ]
 
-
-
-
-
-
-
 let suite =
   "Unit Tests" >::: [
     "Parse_3_2"         >::: parse_3_2_suite;
@@ -83,6 +76,7 @@ let suite =
     "Count_As_Tests"    >::: Test_as.count_as_suite;
     "Sexp_Tests"        >::: Test_sexp.sexp_suite;
     "Json_Tests"        >::: Test_json.pjson_suite;
+    "PPM_Tests"         >::: Test_ppm.ppm_suite;
   ]
 
 let _ = run_test_tt_main suite
