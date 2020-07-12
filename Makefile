@@ -42,7 +42,9 @@ $(BINLOC)/$(BENCHLOC)/bench_%.exe: $(BENCHLOC)/bench_%.ml $(ML_FILES) \
 	dune build $(BENCHLOC)/bench_$*.exe --profile release
 
 bench_%: $(BINLOC)/$(BENCHLOC)/bench_%.exe
-	ulimit -s unlimited; ./$< -quota $(BENCH_QUOTA) -ascii +time
+	ulimit -s unlimited; \
+  ./$< -quota $(BENCH_QUOTA) -ci-absolute -clear-columns -all-values -ascii \
+              +time alloc gc
 
 benchmark: $(BENCHMARK_TARGETS)
 
