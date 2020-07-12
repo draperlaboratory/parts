@@ -430,7 +430,7 @@ Module PPM.
   Defined.
 
   Definition lex_tok {rv st}
-    : Machine rv st ascii ascii ppm_tok := 
+    : Machine rv st ascii ascii ppm_tok :=
         (^"P"%char @> ^"3"%char @> Return P3)
     <|> (Val <$$> Common.integer)
   .
@@ -531,8 +531,10 @@ Module PPM.
     parse_body >>= fun bdy =>
     match hdr,bdy with
     | (width,height,max_allowed),(max_actual,count) =>
-      return_ (Nat.eqb count (width * height) && Nat.leb max_actual max_allowed)
+      return_ (   ocaml_eq count (ocaml_times 3 (ocaml_times width height))
+               && ocaml_lte max_actual max_allowed)
     end.
+
 
   Check lexer.
   Definition lex_opt' : Opt (st := ()) lexer.
